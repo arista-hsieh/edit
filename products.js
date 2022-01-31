@@ -1,15 +1,20 @@
 import { createApp } from 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.0.9/vue.esm-browser.js';
+import pagination from "./pagination.js"
 
 let productModal = null;
 let delProductModal = null;
 
-createApp({
+const app = createApp({
+  components:{
+    pagination
+  },
   data() {
     return {
       apiUrl: 'https://vue3-course-api.hexschool.io/v2',
       apiPath: 'arista',
       products: [],
       isNew: false,
+      pagination:{},
       tempProduct: {
         imagesUrl: [],
       },
@@ -39,34 +44,19 @@ createApp({
         })
         .catch((err) => {
           alert(err.data.message)
-          window.location = 'login.html';
+          window.location = 'index.html';
         })
     },
-    getData() { //取得所有產品列表
-      const url = `${this.apiUrl}/api/${this.apiPath}/admin/products/all`;
+    getData(page = 1) { //取得所有產品列表
+      const url = `${this.apiUrl}/api/${this.apiPath}/admin/products/?page=${page}`;
       axios.get(url).then((response) => {
         this.products = response.data.products;
+        this.pagination = response.data.pagination;
       }).catch((err) => {
         alert(err.data.message);
       })
     },
-    updateProduct() { //更新產品
-      let url = `${this.apiUrl}/api/${this.apiPath}/admin/product`; //如果沒有產品就新增
-      let http = 'post';
-
-      if (!this.isNew) {  //如果有產品就變更
-        url = `${this.apiUrl}/api/${this.apiPath}/admin/product/${this.tempProduct.id}`;
-        http = 'put'
-      }
-
-      axios[http](url, { data: this.tempProduct }).then((response) => {
-        alert(response.data.message);
-        productModal.hide();
-        this.getData();  //重新渲染產品列表
-      }).catch((err) => {
-        alert(err.data.message);
-      })
-    },
+    
     openModal(isNew, item) {
       if (isNew === 'new') { //如果isNew狀態為新增,則this.tepmProduct={imagesUrl:[],};
         this.tempProduct = {
@@ -83,20 +73,77 @@ createApp({
         delProductModal.show()
       }
     },
-    delProduct() { //刪除產品
-      const url = `${this.apiUrl}/api/${this.apiPath}/admin/product/${this.tempProduct.id}`;
-
-      axios.delete(url).then((response) => {
-        alert(response.data.message);
-        delProductModal.hide();
-        this.getData();
-      }).catch((err) => {
-        alert(err.data.message);
-      })
-    },
+    
     createImages() {
       this.tempProduct.imagesUrl = [];
       this.tempProduct.imagesUrl.push('');
     },
   },
-}).mount('#app');
+});
+
+app.component('productModal',{
+  data(){
+    return{
+      apiUrl: 'https://vue3-course-api.hexschool.io/v2',
+      apiPath: 'arista',
+    }
+  },
+  props:['tempProduct','isNew'],
+  template:'#templateForProductModal',
+  methods:{
+    updateProduct() { //更新產品
+      let url = `${this.apiUrl}/api/${this.apiPath}/admin/product`; //如果沒有產品就新增
+      let http = 'post';
+
+      if (!this.isNew) {  //如果有產品就變更
+        url = `${this.apiUrl}/api/${this.apiPath}/admin/product/${this.tempProduct.id}`;
+        http = 'put'
+      }
+
+      axios[http](url, { data: this.tempProduct }).then((response) => {
+        alert(response.data.message);
+        productModal.hide();
+        this.$emit('get-data')
+        //this.getData();  //重新渲染產品列表
+      }).catch((err) => {
+        alert(err.data.message);
+      })
+    },
+  }
+});
+
+app.component('delProductModal', {
+  template: '#delProductModal',
+  props: ['item'],
+  data() {
+    return {
+      apiUrl: 'https://vue3-course-api.hexschool.io/v2',
+      apiPath: 'arista',
+      modal: null,
+    };
+  },
+  mounted() {
+    delProductModal = new bootstrap.Modal(document.getElementById('delProductModal'), {
+      keyboard: false,
+      backdrop: 'static',
+    });
+  },
+  methods: {
+    delProduct() {
+      axios.delete(`${this.apiUrl}/api/${this.apiPath}/admin/product/${this.item.id}`).then((response) => {
+        this.hideModal();
+        this.$emit('update');
+      }).catch((error) => {
+        alert(error.data.message);
+      });
+    },
+    openModal() {
+      delProductModal.show();
+    },
+    hideModal() {
+      delProductModal.hide();
+    },
+  },
+});
+
+app.mount('#app');
